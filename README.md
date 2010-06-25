@@ -1,8 +1,12 @@
 #Interfaced
 
+    npm install interface
+
+    require('interface')
+
 Interfaced is an idea for System based middleware primarily aimed at client applications and libraries. The concept of a feature stack is applied to interface bundles that may then be used as a 'system'.
 
-    System([layer,])
+    Interface.System([layer,])
 
 Interfaces return a function that can be hooked into other systems, or be made into an instance using .create(params).
 
