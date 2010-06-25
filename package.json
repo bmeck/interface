@@ -1,6 +1,6 @@
 {
 	"name": "interface"
-	, "contributors": "Bradley Meck <bradley.meck@gmail.com>"}]
+	, "author": "Bradley Meck <bradley.meck@gmail.com>"
 	, "description": "System for development. Middleware for libraries and applications."
 	, "version": "0.0.1"
 	, "main": "./lib/interface"
