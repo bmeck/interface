@@ -66,18 +66,126 @@ Text                     #text                      content of the text node    
 //    nodeValue
 //    childNodesClosures
 //
-var ApplyInterface = require('interface').ApplyInterface
-module.exports = function(system,interfaces) {
+module.exports = function(system,interfaces,systemClosures,inherit) {
   interfaces['Node'] = {
-    constructor = function (closures,args) {
-      var type = args[0]
-      var result = {}
+    constructor = function (closures,args,interfaceClosures) {
+      var result = {
+        //readonly (siblings must be managed by parentNode)
+        get childNodes() {return closures['childNodes']}
+        , get firstChild() {return closures['firstChild'] }
+        , get lastChild() {return closures['lastChild'] }
+        , get nextSibling() {return closures['nextSibling'] }
+        , get nodeName() {return closures['nodeName'] }
+        , get nodeType() {return closures['nodeType'] }
+        , get nodeValue() {return closures['nodeValue'] }
+        , get previousSibling() {return closures['previousSibling'] }
+        , get attributes() {return closures['attributes'] }
+        , get ownerDocument() {return closures['ownerDocument'] }
+
+
+        //accessors
+        , hasChildren: function() {return this.childNodes.length > 0}
+
+
+        //mutators
+        , appendChild: function(newChild) {
+          return this.insertBefore(newChild,null)
+        }
+
+
+        , insertBefore: function(newChild,referenceChild) {
+          //check if this Node is readonly, try to removeChild on newChild to make sure it can be removed
+          if(closures['readOnly']) {
+            throw system.create('DOMException',interfaces['DOMException'].properties.NO_MODIFICATION_ALLOWED_ERR)
+          }
+          var parentNode = this
+          while (parentNode) {
+            if(parentNode === newChild) {
+              throw system.create('DOMException',interfaces['DOMException'].properties.HIERARCHY_REQUEST_ERR)
+            }
+            parentNode = parentNode.parentNode
+          }
+          if (this.ownerDocument !== newChild.ownerDocument) {
+              throw system.create('DOMException',interfaces['DOMException'].properties.WRONG_DOCUMENT_ERR)
+          }
+          if(newChild.parentNode) newChild.parentNode.removeChild(newChild)
+          var childNodesArray = closures['childNodesClosures']['items']
+          //not supposed to throw an error if reference isnt a child according to spec... but... seems dumb
+          childNodesArray.splice(refrenceChild===null?childNodesArray.length:childNodesArray.indexOf(referenceChild),0,newChild)
+          return newChild
+        }
+
+
+        , removeChild: function(child) {
+          if(closures['readOnly']) {
+            throw system.create('DOMException',interfaces['DOMException'].properties.NO_MODIFICATION_ALLOWED_ERR)
+          }
+          var childNodesArray = closures['childNodesClosures']['items']
+            , childIndex = childNodesArray.indexOf(referenceChild)
+          if(childIndex === -1) {
+            throw system.create('DOMException',interfaces['DOMException'].properties.NOT_FOUND_ERR)
+          }
+          childNodesArray.splice(childIndex,1)
+          return child
+        }
+
+
+        , replaceChild: function(newChild,oldChild) {
+          //check if this Node is readonly, try to removeChild on newChild to make sure it can be removed
+          if(closures['readOnly']) {
+            throw system.create('DOMException',interfaces['DOMException'].properties.NO_MODIFICATION_ALLOWED_ERR)
+          }
+          var parentNode = this
+          while (parentNode) {
+            if(parentNode === newChild) {
+              throw system.create('DOMException',interfaces['DOMException'].properties.HIERARCHY_REQUEST_ERR)
+            }
+            parentNode = parentNode.parentNode
+          }
+          if (this.ownerDocument !== newChild.ownerDocument) {
+              throw system.create('DOMException',interfaces['DOMException'].properties.WRONG_DOCUMENT_ERR)
+          }
+          var childNodesArray = closures['childNodesClosures']['items']
+            , childNodes = newChild instanceof system.getConstructor('DocumentFragment')?newChild.childNodes:[newChild]
+          //remove will throw an error (TODO: Transactional?)
+          childNodes.forEach(function(child) {
+            if(child.parentNode) child.parentNode.removeChild(child)
+          })
+          //not supposed to throw an error if reference isnt a child according to spec... but... seems dumb
+          Array.splice.apply(childNodesArray,[childNodesArray.indexOf(oldChild),1].concat(
+            childNodes
+          ))
+          return newChild
+        }
+      }
         , childNodesClosures = closures['childNodesClosures'] = {}
         //get NodeList but store its closure in childNodesClosures
-        ApplyInterface(system,'NodeList',interfaces,childNodesClosures)
-        closures['parentNode'] = null
-        closures['nodeName'] =
-      return result;
+      var childNodes = closures['childNodes'] = inherit('NodeList',childNodesClosures)
+      closures['nodeName'] = null
+      closures['nodeValue'] = null
+      closures['parentNode'] = null
+
+      if(!'key' in interfaceClosures) {
+        //give a unique key
+        var $key = {}
+        //TODO: make non-linear performance?
+        //have to use an array for uniqueness... suck
+        //LEAK!
+        var closures = []
+        //grab closures to mess w/ siblings and parentNodes w/o readOnly funny bussiness
+        interfaceClosures.getClosures(key,node) {
+          if(key === $key && node === result) {
+            return closures
+          }
+        }
+        interfaceClosures.addClosures(key,node) {
+          if(key === $key) {
+            return closures
+          }
+        }
+      }
+      var id = interfaceClosures.id++
+      return result
     }
     , properties: {
       ELEMENT_NODE                   : 1,
@@ -91,6 +199,7 @@ module.exports = function(system,interfaces) {
       DOCUMENT_NODE                  : 9,
       DOCUMENT_TYPE_NODE             : 10,
       DOCUMENT_FRAGMENT_NODE         : 11,
-      NOTATION_NODE                  : 12
+      NOTATION_NODE                  : 12,
+
   }
 }
