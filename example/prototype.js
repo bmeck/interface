@@ -10,6 +10,6 @@ var a=inst.create('foo')
 var foo = inst.getConstructorOf('foo')
 var bar = inst.getConstructorOf('bar')
 foo.prototype.print = function(){return 'foo'}
-bar.prototype.print = function(){return 'bar'}
-var c = bar()
-sys.puts(a.print(),c.print())
+//bar.prototype.print = function(){return 'bar'}
+var c = new bar()
+sys.puts(c instanceof foo)
